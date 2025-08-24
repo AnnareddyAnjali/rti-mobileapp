@@ -33,7 +33,7 @@ export default function OtpVerification({ route, navigation }) {
         setError('Please enter all 6 digits');
         return;
       }
-      await verification.confirm(otpCode); 
+      await verification.confirm(otpCode);
       Alert.alert('Phone verified!');
       navigation.navigate('ResetPassword', { phone: phoneNumber });
     } catch (err) {
@@ -70,7 +70,7 @@ export default function OtpVerification({ route, navigation }) {
               newCode[index] = text;
               setCode(newCode);
               setError('');
-              
+
               if (text.length === 1 && index < 5) {
                 inputRefs.current[index + 1].current.focus();
               }

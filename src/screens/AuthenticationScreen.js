@@ -9,14 +9,23 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { auth, PhoneAuthProvider, firebaseConfig } from '../../config/firebase';
 
 const LoginScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [agreed, setAgreed] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const recaptchaVerifier = React.useRef(null);
 
   // Validate Indian 10-digit phone number starting with 6-9
   const isValidPhone = (num) => /^[6-9]\d{9}$/.test(num);
+
+  // Format phone number for Firebase (add country code)
+  const formatPhoneForFirebase = (phoneNumber) => {
+    return `+91${phoneNumber}`;
+  };
 
   // Save token and user data locally
   const saveAuthData = async (token, user) => {
@@ -28,7 +37,7 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleLogin = async () => {
+  const handleSendOTP = async () => {
     if (!isValidPhone(phone)) {
       Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
       return;
@@ -39,54 +48,79 @@ const LoginScreen = ({ navigation }) => {
       return;
     }
 
+    setLoading(true);
+
     try {
-      const response = await axios.post(
-        'http://34.100.231.173:3000/api/v1/auth/phone',
-        { phone }
+      const formattedPhone = formatPhoneForFirebase(phone);
+
+      // Send OTP using Firebase v9 SDK
+      const phoneProvider = new PhoneAuthProvider(auth);
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        formattedPhone,
+        recaptchaVerifier.current
       );
 
-      console.log('API response:', response.data);
+      // Navigate to OTP verification screen with verificationId
+      navigation.navigate('OTPScreen', {
+        phone: formattedPhone,
+        verificationId: verificationId
+      });
 
-      const { token, user } = response.data;
-
-      // Save token and user info locally
-      await saveAuthData(token, user);
-
-      if (!user || Object.keys(user).length === 0) {
-        // New user - navigate to OTP screen
-        navigation.navigate('OTPScreen', { phone });
-      } else {
-        // Existing user - navigate directly to StateSelection
-        navigation.replace('StateSelections');
-      }
     } catch (error) {
-      console.error('Login failed:', error);
-      Alert.alert(
-        'Login Failed',
-        error?.response?.data?.message || 'Please try again later.'
-      );
+      console.error('OTP sending failed:', error);
+      let errorMessage = 'Failed to send OTP. Please try again.';
+
+      switch (error.code) {
+        case 'auth/invalid-phone-number':
+          errorMessage = 'Invalid phone number format.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many requests. Please try again later.';
+          break;
+        case 'auth/quota-exceeded':
+          errorMessage = 'SMS quota exceeded. Please try again later.';
+          break;
+        default:
+          errorMessage = error.message || 'Failed to send OTP. Please try again.';
+      }
+
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Firebase reCAPTCHA */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={true}
+      />
+
       <View>
         <Text style={styles.title}>Hello!</Text>
         <Text style={styles.subtitle}>Signup to get Started</Text>
 
         <Text style={styles.label}>Mobile Number*</Text>
-        <TextInput
-          placeholder="Enter your mobile number"
-          keyboardType="number-pad"
-          value={phone}
-          onChangeText={setPhone}
-          maxLength={10}
-          style={styles.input}
-        />
+        <View style={styles.phoneInputContainer}>
+          <Text style={styles.countryCode}>+91</Text>
+          <TextInput
+            placeholder="Enter your mobile number"
+            keyboardType="number-pad"
+            value={phone}
+            onChangeText={setPhone}
+            maxLength={10}
+            style={styles.input}
+            editable={!loading}
+          />
+        </View>
 
         <TouchableOpacity
           style={styles.checkboxContainer}
           onPress={() => setAgreed(!agreed)}
+          disabled={loading}
         >
           <Ionicons
             name={agreed ? 'checkbox' : 'square-outline'}
@@ -97,8 +131,14 @@ const LoginScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleSendOTP}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Sending OTP...' : 'Send OTP'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -112,7 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
     paddingTop: 60,
-    justifyContent: 'space-between',
+    //justifyContent: 'space-between',
     paddingBottom: 40,
   },
   title: {
@@ -132,15 +172,29 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 8,
   },
-  input: {
+  phoneInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
+    backgroundColor: '#fff',
+    marginBottom: 20,
+  },
+  countryCode: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 20,
-    backgroundColor: '#fff',
+    color: '#111827',
+    borderRightWidth: 1,
+    borderRightColor: '#D1D5DB',
+  },
+  input: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 0,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -157,6 +211,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#94a3b8',
   },
   buttonText: {
     color: '#fff',
