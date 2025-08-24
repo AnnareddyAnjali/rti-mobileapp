@@ -1,4 +1,3 @@
-
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { getAuth, signInWithPhoneNumber } from 'firebase/auth';
 import React, { useEffect, useRef, useState } from 'react';
