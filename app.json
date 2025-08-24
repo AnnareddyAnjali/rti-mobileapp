@@ -4,7 +4,7 @@
     "slug": "rti-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/Assets/RTIExpress1.png",
+    "icon": "./src/Assets/RTIExpress1_square.png",
     "scheme": "rtiapp",
     "userInterfaceStyle": "automatic",
 
@@ -16,7 +16,7 @@
 
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./src/Assets/RTIExpress1.png",
+        "foregroundImage": "./src/Assets/RTIExpress1_square.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -26,7 +26,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./src/Assets/RTIExpress1.png"
+      "favicon": "./src/Assets/RTIExpress1_square.png"
     },
 
     "plugins": [
@@ -34,10 +34,16 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/Assets/RTIExpress1.png",
+          "image": "./src/Assets/RTIExpress1_square.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them in posts."
         }
       ],
       "expo-localization"

@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from "expo-file-system";
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import {
   Alert,
   Image,
@@ -22,20 +22,42 @@ export default function AddPostScreen({ navigation }) {
   const [videoLink, setVideoLink] = useState('');
   const [article, setArticle] = useState('');
 
-  const { userData, userPosts, setUserPosts } = useContext(UserContext); 
+  const { userData, userPosts, setUserPosts } = useContext(UserContext);
+
+  // Request permissions when component mounts
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera roll permissions are required to upload images.');
+      }
+    })();
+  }, []);
 
   const pickPostImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images, // <-- updated
-      allowsEditing: true,
-      quality: 0.8,
-    });
+    try {
+      // Request permissions first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!result.canceled) {
-      setPostImage(result.assets[0].uri);
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Fixed: Use MediaTypeOptions instead of MediaType
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setPostImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to open image picker');
     }
   };
-
 
   const handlePostSubmit = async () => {
     if (!postImage || !heading || !category || !article) {
@@ -83,7 +105,6 @@ export default function AddPostScreen({ navigation }) {
       Alert.alert("Error", "Failed to upload news.");
     }
   };
-
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
